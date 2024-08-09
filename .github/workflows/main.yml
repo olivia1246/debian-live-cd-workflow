@@ -1,0 +1,150 @@
+name: Build Custom Debian Live ISO
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up prerequisites
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y debootstrap squashfs-tools xorriso isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin mtools dosfstools
+
+    - name: Create build directory
+      run: mkdir -p "${HOME}/LIVE_BOOT"
+
+    - name: Bootstrap Debian Sid
+      run: |
+        sudo debootstrap --arch=i386 --variant=minbase sid "${HOME}/LIVE_BOOT/chroot" http://ftp.us.debian.org/debian/
+        echo "debian-live" | sudo tee "${HOME}/LIVE_BOOT/chroot/etc/hostname"
+
+    - name: Install Linux Kernel and live-boot
+      run: |
+        sudo chroot "${HOME}/LIVE_BOOT/chroot" <<EOF
+        apt-get update && \
+        apt-get install -y --no-install-recommends linux-image-686 live-boot systemd-sysv
+        EOF
+
+    - name: Install Firefox and other necessary packages
+      run: |
+        sudo chroot "${HOME}/LIVE_BOOT/chroot" <<EOF
+        apt-get install -y --no-install-recommends firefox-esr iwd curl openssh-client openbox xserver-xorg-core xserver-xorg xinit xterm nano
+        apt-get clean
+        EOF
+
+    - name: Set root password
+      run: sudo chroot "${HOME}/LIVE_BOOT/chroot" passwd root
+
+    - name: Create directories for live environment
+      run: mkdir -p "${HOME}/LIVE_BOOT"/{staging/{EFI/BOOT,boot/grub/i386-pc,isolinux,live},tmp}
+
+    - name: Compress chroot environment
+      run: sudo mksquashfs "${HOME}/LIVE_BOOT/chroot" "${HOME}/LIVE_BOOT/staging/live/filesystem.squashfs" -e boot
+
+    - name: Copy kernel and initramfs
+      run: |
+        cp "${HOME}/LIVE_BOOT/chroot/boot"/vmlinuz-* "${HOME}/LIVE_BOOT/staging/live/vmlinuz" && \
+        cp "${HOME}/LIVE_BOOT/chroot/boot"/initrd.img-* "${HOME}/LIVE_BOOT/staging/live/initrd"
+
+    - name: Prepare ISOLINUX boot menu
+      run: |
+        cat <<'EOF' > "${HOME}/LIVE_BOOT/staging/isolinux/isolinux.cfg"
+        UI vesamenu.c32
+
+        MENU TITLE Boot Menu
+        DEFAULT linux
+        TIMEOUT 600
+        MENU RESOLUTION 640 480
+        MENU COLOR border       30;44   #40ffffff #a0000000 std
+        MENU COLOR title        1;36;44 #9033ccff #a0000000 std
+        MENU COLOR sel          7;37;40 #e0ffffff #20ffffff all
+        MENU COLOR unsel        37;44   #50ffffff #a0000000 std
+        MENU COLOR help         37;40   #c0ffffff #a0000000 std
+        MENU COLOR timeout_msg  37;40   #80ffffff #00000000 std
+        MENU COLOR timeout      1;37;40 #c0ffffff #00000000 std
+        MENU COLOR msg07        37;40   #90ffffff #a0000000 std
+        MENU COLOR tabmsg       31;40   #30ffffff #00000000 std
+
+        LABEL linux
+          MENU LABEL Debian Live [BIOS/ISOLINUX]
+          MENU DEFAULT
+          KERNEL /live/vmlinuz
+          APPEND initrd=/live/initrd boot=live
+
+        LABEL linux
+          MENU LABEL Debian Live [BIOS/ISOLINUX] (nomodeset)
+          MENU DEFAULT
+          KERNEL /live/vmlinuz
+          APPEND initrd=/live/initrd boot=live nomodeset
+        EOF
+
+    - name: Prepare GRUB boot menu
+      run: |
+        cat <<'EOF' > "${HOME}/LIVE_BOOT/staging/boot/grub/grub.cfg"
+        insmod part_gpt
+        insmod part_msdos
+        insmod fat
+        insmod iso9660
+
+        insmod all_video
+        insmod font
+
+        set default="0"
+        set timeout=30
+
+        menuentry "Debian Live [EFI/GRUB]" {
+            search --no-floppy --set=root --label DEBLIVE
+            linux ($root)/live/vmlinuz boot=live
+            initrd ($root)/live/initrd
+        }
+
+        menuentry "Debian Live [EFI/GRUB] (nomodeset)" {
+            search --no-floppy --set=root --label DEBLIVE
+            linux ($root)/live/vmlinuz boot=live nomodeset
+            initrd ($root)/live/initrd
+        }
+        EOF
+
+    - name: Copy GRUB config to EFI BOOT directory
+      run: cp "${HOME}/LIVE_BOOT/staging/boot/grub/grub.cfg" "${HOME}/LIVE_BOOT/staging/EFI/BOOT/"
+
+    - name: Create embedded GRUB config
+      run: |
+        cat <<'EOF' > "${HOME}/LIVE_BOOT/tmp/grub-embed.cfg"
+        if ! [ -d "$cmdpath" ]; then
+            if regexp --set=1:isodevice '^(\([^)]+\))/?[Ee][Ff][Ii]/[Bb][Oo][Oo][Tt]/?$' "$cmdpath"; then
+                cmdpath="${isodevice}/EFI/BOOT"
+            fi
+        fi
+        configfile "${cmdpath}/grub.cfg"
+        EOF
+
+    - name: Build ISO
+      run: |
+        xorriso -as mkisofs \
+        -r -J -joliet-long -l \
+        -partition_offset 16 \
+        -V "DEBLIVE" \
+        -b isolinux/isolinux.bin \
+        -c isolinux/boot.cat \
+        -no-emul-boot \
+        -boot-load-size 4 \
+        -boot-info-table \
+        -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+        -eltorito-alt-boot \
+        -e EFI/BOOT/bootx64.efi \
+        -no-emul-boot \
+        -isohybrid-gpt-basdat \
+        -o "${HOME}/LIVE_BOOT/debian-live.iso" \
+        "${HOME}/LIVE_BOOT/staging"
+        
+    - name: Upload ISO
+      uses: actions/upload-artifact@v2
+      with:
+        name: debian-live.iso
+        path: ${{HOME}}/LIVE_BOOT/debian-live.iso
