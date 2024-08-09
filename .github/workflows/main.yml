@@ -13,47 +13,47 @@ jobs:
     - name: Set up prerequisites
       run: |
         sudo apt-get update
-        sudo apt-get install -y debootstrap squashfs-tools xorriso isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin mtools dosfstools
+        sudo apt-get install -y debootstrap squashfs-tools xorriso isolinux syslinux-efi grub-pc-bin grub-efi-ia32-bin mtools dosfstools
 
     - name: Create build directory
-      run: mkdir -p "${HOME}/LIVE_BOOT"
+      run: mkdir -p "${{ runner.temp }}/LIVE_BOOT"
 
     - name: Bootstrap Debian Sid
       run: |
-        sudo debootstrap --arch=i386 --variant=minbase sid "${HOME}/LIVE_BOOT/chroot" http://ftp.us.debian.org/debian/
-        echo "debian-live" | sudo tee "${HOME}/LIVE_BOOT/chroot/etc/hostname"
+        sudo debootstrap --arch=i386 --variant=minbase sid "${{ runner.temp }}/LIVE_BOOT/chroot" http://ftp.us.debian.org/debian/
+        echo "debian-live" | sudo tee "${{ runner.temp }}/LIVE_BOOT/chroot/etc/hostname"
 
     - name: Install Linux Kernel and live-boot
       run: |
-        sudo chroot "${HOME}/LIVE_BOOT/chroot" <<EOF
+        sudo chroot "${{ runner.temp }}/LIVE_BOOT/chroot" <<EOF
         apt-get update && \
         apt-get install -y --no-install-recommends linux-image-686 live-boot systemd-sysv
         EOF
 
     - name: Install Firefox and other necessary packages
       run: |
-        sudo chroot "${HOME}/LIVE_BOOT/chroot" <<EOF
+        sudo chroot "${{ runner.temp }}/LIVE_BOOT/chroot" <<EOF
         apt-get install -y --no-install-recommends firefox-esr iwd curl openssh-client openbox xserver-xorg-core xserver-xorg xinit xterm nano
         apt-get clean
         EOF
 
     - name: Set root password
-      run: sudo chroot "${HOME}/LIVE_BOOT/chroot" passwd root
+      run: sudo chroot "${{ runner.temp }}/LIVE_BOOT/chroot" passwd root
 
     - name: Create directories for live environment
-      run: mkdir -p "${HOME}/LIVE_BOOT"/{staging/{EFI/BOOT,boot/grub/i386-pc,isolinux,live},tmp}
+      run: mkdir -p "${{ runner.temp }}/LIVE_BOOT"/{staging/{EFI/BOOT,boot/grub/i386-pc,isolinux,live},tmp}
 
     - name: Compress chroot environment
-      run: sudo mksquashfs "${HOME}/LIVE_BOOT/chroot" "${HOME}/LIVE_BOOT/staging/live/filesystem.squashfs" -e boot
+      run: sudo mksquashfs "${{ runner.temp }}/LIVE_BOOT/chroot" "${{ runner.temp }}/LIVE_BOOT/staging/live/filesystem.squashfs" -e boot
 
     - name: Copy kernel and initramfs
       run: |
-        cp "${HOME}/LIVE_BOOT/chroot/boot"/vmlinuz-* "${HOME}/LIVE_BOOT/staging/live/vmlinuz" && \
-        cp "${HOME}/LIVE_BOOT/chroot/boot"/initrd.img-* "${HOME}/LIVE_BOOT/staging/live/initrd"
+        cp "${{ runner.temp }}/LIVE_BOOT/chroot/boot"/vmlinuz-* "${{ runner.temp }}/LIVE_BOOT/staging/live/vmlinuz" && \
+        cp "${{ runner.temp }}/LIVE_BOOT/chroot/boot"/initrd.img-* "${{ runner.temp }}/LIVE_BOOT/staging/live/initrd"
 
     - name: Prepare ISOLINUX boot menu
       run: |
-        cat <<'EOF' > "${HOME}/LIVE_BOOT/staging/isolinux/isolinux.cfg"
+        cat <<'EOF' > "${{ runner.temp }}/LIVE_BOOT/staging/isolinux/isolinux.cfg"
         UI vesamenu.c32
 
         MENU TITLE Boot Menu
@@ -85,7 +85,7 @@ jobs:
 
     - name: Prepare GRUB boot menu
       run: |
-        cat <<'EOF' > "${HOME}/LIVE_BOOT/staging/boot/grub/grub.cfg"
+        cat <<'EOF' > "${{ runner.temp }}/LIVE_BOOT/staging/boot/grub/grub.cfg"
         insmod part_gpt
         insmod part_msdos
         insmod fat
@@ -111,13 +111,13 @@ jobs:
         EOF
 
     - name: Copy GRUB config to EFI BOOT directory
-      run: cp "${HOME}/LIVE_BOOT/staging/boot/grub/grub.cfg" "${HOME}/LIVE_BOOT/staging/EFI/BOOT/"
+      run: cp "${{ runner.temp }}/LIVE_BOOT/staging/boot/grub/grub.cfg" "${{ runner.temp }}/LIVE_BOOT/staging/EFI/BOOT/"
 
     - name: Create embedded GRUB config
       run: |
-        cat <<'EOF' > "${HOME}/LIVE_BOOT/tmp/grub-embed.cfg"
+        cat <<'EOF' > "${{ runner.temp }}/LIVE_BOOT/tmp/grub-embed.cfg"
         if ! [ -d "$cmdpath" ]; then
-            if regexp --set=1:isodevice '^(\([^)]+\))/?[Ee][Ff][Ii]/[Bb][Oo][Oo][Tt]/?$' "$cmdpath"; then
+            if regexp --set=1:isodevice '^(\([^)]+\))/?[Ee][Ff][Ii]/[Bb][Oo][Tt]/?$' "$cmdpath"; then
                 cmdpath="${isodevice}/EFI/BOOT"
             fi
         fi
@@ -137,14 +137,18 @@ jobs:
         -boot-info-table \
         -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
         -eltorito-alt-boot \
-        -e EFI/BOOT/bootx64.efi \
+        -e EFI/BOOT/bootia32.efi \
         -no-emul-boot \
         -isohybrid-gpt-basdat \
-        -o "${HOME}/LIVE_BOOT/debian-live.iso" \
-        "${HOME}/LIVE_BOOT/staging"
+        -o "${{ runner.temp }}/LIVE_BOOT/debian-live.iso" \
+        "${{ runner.temp }}/LIVE_BOOT/staging"
         
     - name: Upload ISO
       uses: actions/upload-artifact@v2
       with:
         name: debian-live.iso
-        path: ${{HOME}}/LIVE_BOOT/debian-live.iso
+        path: ${{ runner.temp }}/LIVE_BOOT/debian-live.iso
+
+    - name: Credit
+      run: |
+        echo "This ISO was built following the guide from Will Haley's blog: https://www.willhaley.com/blog/custom-debian-live-environment/"
