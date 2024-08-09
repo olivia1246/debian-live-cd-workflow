@@ -18,9 +18,9 @@ jobs:
     - name: Create build directory
       run: mkdir -p "${{ runner.temp }}/LIVE_BOOT"
 
-    - name: Bootstrap Debian Sid
+    - name: Bootstrap Debian Bullseye
       run: |
-        sudo debootstrap --verbose --arch=i386 --variant=minbase sid "${{ runner.temp }}/LIVE_BOOT/chroot" http://ftp.us.debian.org/debian/
+        sudo debootstrap --verbose --arch=i386 --variant=minbase bullseye "${{ runner.temp }}/LIVE_BOOT/chroot" http://ftp.us.debian.org/debian/
         echo "debian-live" | sudo tee "${{ runner.temp }}/LIVE_BOOT/chroot/etc/hostname"
 
     - name: Install Linux Kernel and live-boot
