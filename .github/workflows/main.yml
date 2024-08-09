@@ -51,6 +51,13 @@ jobs:
         cp "${{ runner.temp }}/LIVE_BOOT/chroot/boot"/vmlinuz-* "${{ runner.temp }}/LIVE_BOOT/staging/live/vmlinuz" && \
         cp "${{ runner.temp }}/LIVE_BOOT/chroot/boot"/initrd.img-* "${{ runner.temp }}/LIVE_BOOT/staging/live/initrd"
 
+    - name: Prepare ISOLINUX files
+      run: |
+        sudo cp /usr/lib/ISOLINUX/isolinux.bin "${{ runner.temp }}/LIVE_BOOT/staging/isolinux/"
+        sudo cp /usr/lib/syslinux/modules/bios/*.c32 "${{ runner.temp }}/LIVE_BOOT/staging/isolinux/"
+        sudo cp /usr/lib/ISOLINUX/isohdpfx.bin "${{ runner.temp }}/LIVE_BOOT/staging/isolinux/"
+        
+
     - name: Prepare ISOLINUX boot menu
       run: |
         cat <<'EOF' > "${{ runner.temp }}/LIVE_BOOT/staging/isolinux/isolinux.cfg"
@@ -78,7 +85,6 @@ jobs:
 
         LABEL linux
           MENU LABEL Debian Live [BIOS/ISOLINUX] (nomodeset)
-          MENU DEFAULT
           KERNEL /live/vmlinuz
           APPEND initrd=/live/initrd boot=live nomodeset
         EOF
@@ -135,7 +141,7 @@ jobs:
         -no-emul-boot \
         -boot-load-size 4 \
         -boot-info-table \
-        -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+        -isohybrid-mbr "${{ runner.temp }}/LIVE_BOOT/staging/isolinux/isohdpfx.bin" \
         -eltorito-alt-boot \
         -e EFI/BOOT/bootia32.efi \
         -no-emul-boot \
