@@ -38,7 +38,7 @@ jobs:
         EOF
 
     - name: Set root password
-      run: sudo chroot "${{ runner.temp }}/LIVE_BOOT/chroot" passwd root
+      run: echo 'root:root' | sudo chroot "${{ runner.temp }}/LIVE_BOOT/chroot" chpasswd
 
     - name: Create directories for live environment
       run: mkdir -p "${{ runner.temp }}/LIVE_BOOT"/{staging/{EFI/BOOT,boot/grub/i386-pc,isolinux,live},tmp}
