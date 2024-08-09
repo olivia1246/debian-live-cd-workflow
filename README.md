@@ -1,5 +1,7 @@
 # Debian Live CD Custom Build Workflow
 
+Currently is only for x86/i686 machines. It should boot on x86_64/amd64 however the operating system is only for x86 machines at this time. May make an update to allow native amd64 building.
+
 ## Overview
 
 This repository provides a GitHub Actions workflow to automate the creation of a customized Debian Live CD ISO. The workflow is designed to build a Debian Live ISO from scratch, including installing packages, configuring the environment, and generating the final ISO image.
