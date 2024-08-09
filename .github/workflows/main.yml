@@ -5,7 +5,7 @@ on:
     branches:
       - main  # or your default branch name
   schedule:
-    - cron: '0 0 1 * * *'  # This will run the workflow monthly at midnight UTC
+    - cron: '0 0 1 * *'  # This will run the workflow monthly at midnight UTC
   workflow_dispatch:  # This allows manual triggers from the GitHub UI
 
 jobs:
@@ -36,7 +36,7 @@ jobs:
         apt-get install -y --no-install-recommends linux-image-686 live-boot systemd-sysv
         EOF
 
-    - name: Install packages
+    - name: Install packages #
       run: |
         sudo chroot "${{ runner.temp }}/LIVE_BOOT/chroot" <<EOF
         apt-get install -y --no-install-recommends firefox-esr iwd curl openssh-client openbox xserver-xorg-core xserver-xorg xinit xterm nano
