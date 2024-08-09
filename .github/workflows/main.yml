@@ -51,6 +51,33 @@ jobs:
         cp "${{ runner.temp }}/LIVE_BOOT/chroot/boot"/vmlinuz-* "${{ runner.temp }}/LIVE_BOOT/staging/live/vmlinuz" && \
         cp "${{ runner.temp }}/LIVE_BOOT/chroot/boot"/initrd.img-* "${{ runner.temp }}/LIVE_BOOT/staging/live/initrd"
 
+    - name: Prepare EFI files
+      run: |
+        sudo mkdir -p "${{ runner.temp }}/LIVE_BOOT/staging/EFI/BOOT"
+        sudo grub-mkstandalone \
+          --format=i386-efi \
+          --output="${{ runner.temp }}/LIVE_BOOT/staging/EFI/BOOT/bootia32.efi" \
+          --locales="" \
+          --fonts="" \
+          "boot/grub/grub.cfg=${{ runner.temp }}/LIVE_BOOT/staging/boot/grub/grub.cfg"
+        
+        sudo grub-mkstandalone \
+          --format=x86_64-efi \
+          --output="${{ runner.temp }}/LIVE_BOOT/staging/EFI/BOOT/bootx64.efi" \
+          --locales="" \
+          --fonts="" \
+          "boot/grub/grub.cfg=${{ runner.temp }}/LIVE_BOOT/staging/boot/grub/grub.cfg"
+        
+        sudo cp -r /usr/lib/grub/i386-efi "${{ runner.temp }}/LIVE_BOOT/staging/boot/grub/"
+
+    - name: Create EFI partition image
+      run: |
+        dd if=/dev/zero of="${{ runner.temp }}/LIVE_BOOT/staging/efi.img" bs=1M count=10
+        sudo mkfs.vfat "${{ runner.temp }}/LIVE_BOOT/staging/efi.img"
+        sudo mmd -i "${{ runner.temp }}/LIVE_BOOT/staging/efi.img" ::/EFI ::/EFI/BOOT
+        sudo mcopy -i "${{ runner.temp }}/LIVE_BOOT/staging/efi.img" "${{ runner.temp }}/LIVE_BOOT/staging/EFI/BOOT/bootia32.efi" ::/EFI/BOOT/
+        sudo mcopy -i "${{ runner.temp }}/LIVE_BOOT/staging/efi.img" "${{ runner.temp }}/LIVE_BOOT/staging/EFI/BOOT/bootx64.efi" ::/EFI/BOOT/
+        
     - name: Prepare ISOLINUX files
       run: |
         sudo cp /usr/lib/ISOLINUX/isolinux.bin "${{ runner.temp }}/LIVE_BOOT/staging/isolinux/"
@@ -143,7 +170,7 @@ jobs:
         -boot-info-table \
         -isohybrid-mbr "${{ runner.temp }}/LIVE_BOOT/staging/isolinux/isohdpfx.bin" \
         -eltorito-alt-boot \
-        -e EFI/BOOT/bootia32.efi \
+        -e efi.img \
         -no-emul-boot \
         -isohybrid-gpt-basdat \
         -o "${{ runner.temp }}/LIVE_BOOT/debian-live.iso" \
