@@ -36,7 +36,7 @@ jobs:
         apt-get install -y --no-install-recommends linux-image-686 live-boot systemd-sysv
         EOF
 
-    - name: Install Firefox and other necessary packages
+    - name: Install packages
       run: |
         sudo chroot "${{ runner.temp }}/LIVE_BOOT/chroot" <<EOF
         apt-get install -y --no-install-recommends firefox-esr iwd curl openssh-client openbox xserver-xorg-core xserver-xorg xinit xterm nano
