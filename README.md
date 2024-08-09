@@ -1,6 +1,6 @@
 # Debian Live CD Custom Build Workflow
 
-Currently is only for x86/i686 machines. It should boot on x86_64/amd64 however the operating system is only for x86 machines at this time. May make an update to allow native amd64 building.
+Currently is only for x86/i386 machines. It should boot on x86_64/amd64 however the operating system is only for i386 machines at this time. May make an update to allow native amd64 building.
 
 ## Overview
 
