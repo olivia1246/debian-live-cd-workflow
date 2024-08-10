@@ -39,7 +39,7 @@ jobs:
     - name: Install packages # This is the one you want to modify for adding or removing packages.
       run: |
         sudo chroot "${{ runner.temp }}/LIVE_BOOT/chroot" <<EOF
-        apt-get install -y --no-install-recommends networkmanager netsurf-gtk iwd curl openssh-client openbox xserver-xorg-core xserver-xorg xinit xterm nano
+        apt-get install -y --no-install-recommends netsurf-gtk iwd curl openssh-client openbox xserver-xorg-core xserver-xorg xinit xterm nano
         apt-get clean
         EOF
 
