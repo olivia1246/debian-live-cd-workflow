@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     
     steps:
     - name: Checkout repository
@@ -24,9 +24,9 @@ jobs:
     - name: Create build directory
       run: mkdir -p "${{ runner.temp }}/LIVE_BOOT"
 
-    - name: Bootstrap Debian Bullseye
+    - name: Bootstrap Debian Bookworm
       run: |
-        sudo debootstrap --verbose --arch=i386 --variant=minbase bullseye "${{ runner.temp }}/LIVE_BOOT/chroot" http://ftp.us.debian.org/debian/
+        sudo debootstrap --verbose --arch=i386 --variant=minbase bookworm "${{ runner.temp }}/LIVE_BOOT/chroot" http://ftp.us.debian.org/debian/
         echo "debian-live" | sudo tee "${{ runner.temp }}/LIVE_BOOT/chroot/etc/hostname"
 
     - name: Install Linux Kernel and live-boot
