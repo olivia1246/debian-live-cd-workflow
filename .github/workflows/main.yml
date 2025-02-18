@@ -183,7 +183,7 @@ jobs:
         "${{ runner.temp }}/LIVE_BOOT/staging"
         
     - name: Upload ISO
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: debian-live.iso
         path: ${{ runner.temp }}/LIVE_BOOT/debian-live.iso
